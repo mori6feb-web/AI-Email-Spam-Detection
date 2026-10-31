@@ -1,0 +1,92 @@
+[
+  {
+    "time": "2026-10-29 20:37:51",
+    "preview": "Congratulations! You won a free prize. Click here now to claim your reward! Limited time offer!",
+    "spam": true,
+    "spam_probability": 80.8,
+    "risk_score": 73,
+    "risk_level": "High",
+    "phishing_score": 0
+  },
+  {
+    "time": "2026-10-29 20:39:08",
+    "preview": "Hi team, please find the class notes attached. Our next meeting is scheduled for Monday at 10 AM. Th",
+    "spam": false,
+    "spam_probability": 22.0,
+    "risk_score": 14,
+    "risk_level": "Low",
+    "phishing_score": 0
+  },
+  {
+    "time": "2026-10-29 20:40:11",
+    "preview": "URGENT! Your account is suspended. Verify your password and OTP immediately at http://192.168.1.10/l",
+    "spam": false,
+    "spam_probability": 43.7,
+    "risk_score": 100,
+    "risk_level": "High",
+    "phishing_score": 100
+  },
+  {
+    "time": "2026-10-30 10:36:35",
+    "preview": "Congratulations! You have won a FREE iPhone 16! Click here now to claim your prize. This limited-tim",
+    "spam": true,
+    "spam_probability": 79.0,
+    "risk_score": 66,
+    "risk_level": "High",
+    "phishing_score": 0
+  },
+  {
+    "time": "2026-10-30 10:38:47",
+    "preview": "URGENT! Your bank account has been temporarily blocked. Verify your account immediately by entering ",
+    "spam": true,
+    "spam_probability": 54.4,
+    "risk_score": 100,
+    "risk_level": "High",
+    "phishing_score": 100
+  },
+  {
+    "time": "2026-10-30 10:39:57",
+    "preview": "Dear Professor, I have completed my assignment and attached the document for your review. Please let",
+    "spam": false,
+    "spam_probability": 31.5,
+    "risk_score": 20,
+    "risk_level": "Low",
+    "phishing_score": 0
+  },
+  {
+    "time": "2026-10-30 10:42:06",
+    "preview": "Phishing Analysis Result",
+    "spam": false,
+    "spam_probability": 50.0,
+    "risk_score": 32,
+    "risk_level": "Medium",
+    "phishing_score": 0
+  },
+  {
+    "time": "2026-10-30 10:50:10",
+    "preview": "Dear Valued Customer, We have detected unusual activity on your account. Your account will be perman",
+    "spam": true,
+    "spam_probability": 61.9,
+    "risk_score": 75,
+    "risk_level": "High",
+    "phishing_score": 75
+  },
+  {
+    "time": "2026-10-30 10:54:36",
+    "preview": "\"Hi team, please find the class notes attached. Our next meeting is scheduled for Monday at 10 AM. T",
+    "spam": false,
+    "spam_probability": 22.0,
+    "risk_score": 14,
+    "risk_level": "Low",
+    "phishing_score": 0
+  },
+  {
+    "time": "2026-10-30 10:57:00",
+    "preview": "\"URGENT! Your account is suspended. Verify your password and OTP immediately at http://192.168.1.10/",
+    "spam": false,
+    "spam_probability": 43.7,
+    "risk_score": 100,
+    "risk_level": "High",
+    "phishing_score": 100
+  }
+]
