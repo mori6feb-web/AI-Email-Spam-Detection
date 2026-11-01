@@ -1,9 +1,11 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
+
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 from pathlib import Path
 from datetime import datetime
 import html
 import json
+import os
 import pickle
 import re
 import traceback
@@ -12,8 +14,14 @@ ROOT = Path(__file__).resolve().parent
 MODEL_PATH = ROOT / "spam_model.pkl"
 HISTORY_PATH = ROOT / "analysis_history.json"
 
-with MODEL_PATH.open("rb") as f:
-    MODEL = pickle.load(f)
+# Load the trained machine-learning model
+try:
+    with MODEL_PATH.open("rb") as f:
+        MODEL = pickle.load(f)
+    print("Spam detection model loaded successfully.")
+except Exception as error:
+    print("Model loading failed:", error)
+    raise
 
 
 def esc(value):
@@ -23,7 +31,9 @@ def esc(value):
 def get_history():
     try:
         if HISTORY_PATH.exists():
-            data = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+            data = json.loads(
+                HISTORY_PATH.read_text(encoding="utf-8")
+            )
             return data if isinstance(data, list) else []
     except (OSError, json.JSONDecodeError):
         pass
@@ -31,26 +41,38 @@ def get_history():
 
 
 def save_history(history):
-    HISTORY_PATH.write_text(
-        json.dumps(history[-100:], indent=2, ensure_ascii=False),
-        encoding="utf-8"
-    )
+    try:
+        HISTORY_PATH.write_text(
+            json.dumps(
+                history[-100:],
+                indent=2,
+                ensure_ascii=False
+            ),
+            encoding="utf-8"
+        )
+    except OSError as error:
+        print("History could not be saved:", error)
 
 
 def predict_spam(message):
     prediction = MODEL.predict([message])[0]
     label = str(prediction).strip().lower()
-    classes = list(getattr(MODEL, "classes_", []))
 
+    classes = list(getattr(MODEL, "classes_", []))
     spam_labels = ("spam", "1", "true", "yes")
 
     spam_index = next(
-        (i for i, c in enumerate(classes)
-         if str(c).strip().lower() in spam_labels),
+        (
+            i for i, c in enumerate(classes)
+            if str(c).strip().lower() in spam_labels
+        ),
         None
     )
 
-    if hasattr(MODEL, "predict_proba") and spam_index is not None:
+    if (
+        hasattr(MODEL, "predict_proba")
+        and spam_index is not None
+    ):
         probabilities = MODEL.predict_proba([message])[0]
         spam_probability = float(probabilities[spam_index])
     else:
@@ -132,13 +154,17 @@ def analyze_urls(message):
         parsed = urlparse(
             url if "://" in url else "http://" + url
         )
+
         host = (parsed.hostname or "").lower()
         flags = []
 
         if not host:
             flags.append("Could not read the link domain")
 
-        if re.match(r"^\d{1,3}(?:\.\d{1,3}){3}$", host):
+        if re.match(
+            r"^\d{1,3}(?:\.\d{1,3}){3}$",
+            host
+        ):
             flags.append(
                 "Uses an IP address instead of a normal domain"
             )
@@ -187,32 +213,38 @@ def analyze_message(message, is_spam, spam_probability):
     lower = message.lower()
 
     suspicious = [
-        word for word in SUSPICIOUS_WORDS if word in lower
+        word for word in SUSPICIOUS_WORDS
+        if word in lower
     ]
 
     phishing_hits = [
-        word for word in PHISHING_WORDS if word in lower
+        word for word in PHISHING_WORDS
+        if word in lower
     ]
 
     urgency_hits = [
-        word for word in URGENCY_WORDS if word in lower
+        word for word in URGENCY_WORDS
+        if word in lower
     ]
 
     threat_hits = [
-        word for word in THREAT_WORDS if word in lower
+        word for word in THREAT_WORDS
+        if word in lower
     ]
 
     urls, url_findings, url_risk = analyze_urls(message)
 
     has_credentials = any(
-        word in lower for word in (
+        word in lower
+        for word in (
             "password", "otp", "one-time password",
             "bank details", "credit card"
         )
     )
 
     has_account_threat = any(
-        word in lower for word in (
+        word in lower
+        for word in (
             "account suspended",
             "account is suspended",
             "account is locked",
@@ -231,11 +263,13 @@ def analyze_message(message, is_spam, spam_probability):
         )
         host = (parsed.hostname or "").lower()
 
-        if re.match(r"^\d{1,3}(?:\.\d{1,3}){3}$", host):
+        if re.match(
+            r"^\d{1,3}(?:\.\d{1,3}){3}$",
+            host
+        ):
             has_ip_url = True
             break
 
-    # Rule-based phishing indicator, separate from the ML model.
     phishing_score = min(
         100,
         len(phishing_hits) * 15
@@ -246,7 +280,6 @@ def analyze_message(message, is_spam, spam_probability):
         + url_risk
     )
 
-    # Strong combination: credentials + account threat + urgency/link.
     if (
         has_credentials
         and has_account_threat
@@ -391,10 +424,11 @@ def highlight_message(message, words):
 
     for word in sorted(words, key=len, reverse=True):
         pattern = re.compile(re.escape(esc(word)), re.IGNORECASE)
-
         result = pattern.sub(
             lambda match:
-                '<span class="highlight">' + match.group(0) + '</span>',
+                '<span class="highlight">'
+                + match.group(0)
+                + '</span>',
             result
         )
 
@@ -468,24 +502,33 @@ def dashboard():
     history = get_history()
     total = len(history)
 
-    spam_count = sum(1 for item in history if item.get("spam"))
+    spam_count = sum(
+        1 for item in history if item.get("spam")
+    )
     legitimate = total - spam_count
 
     high_count = sum(
-        1 for item in history if item.get("risk_level") == "High"
+        1 for item in history
+        if item.get("risk_level") == "High"
     )
 
     phishing_count = sum(
-        1 for item in history if item.get("phishing_score", 0) >= 35
+        1 for item in history
+        if item.get("phishing_score", 0) >= 35
     )
 
     average_risk = (
-        round(sum(item.get("risk_score", 0) for item in history) / total)
+        round(
+            sum(item.get("risk_score", 0) for item in history)
+            / total
+        )
         if total else 0
     )
 
-    spam_width = round(spam_count * 100 / total) if total else 0
-    ham_width = 100 - spam_width if total else 0
+    spam_width = (
+        round(spam_count * 100 / total) if total else 0
+    )
+    ham_width = 100 - spam_width
 
     rows = ""
 
@@ -497,9 +540,11 @@ def dashboard():
         )
 
         level = item.get("risk_level", "Unknown")
-        css = level.lower() if level.lower() in (
-            "low", "medium", "high"
-        ) else "medium"
+        css = (
+            level.lower()
+            if level.lower() in ("low", "medium", "high")
+            else "medium"
+        )
 
         rows += (
             "<tr><td>" + esc(item.get("time", "")) + "</td>"
@@ -507,7 +552,8 @@ def dashboard():
             "<td>" + verdict + "</td>"
             "<td>" + esc(item.get("spam_probability", 0)) + "%</td>"
             '<td><span class="pill ' + css + '">'
-            + esc(level) + " (" + esc(item.get("risk_score", 0))
+            + esc(level) + " ("
+            + esc(item.get("risk_score", 0))
             + "/100)</span></td></tr>"
         )
 
@@ -568,12 +614,12 @@ def dashboard():
 </table>
 </div>
 <p class="muted">
-History is saved locally in analysis_history.json. The last 100 records are kept.
+History is saved locally in analysis_history.json.
+The last 100 records are kept.
 </p>
 </div>
 </div>
 """
-
     return page(body)
 
 
@@ -583,7 +629,10 @@ class Handler(BaseHTTPRequestHandler):
         data = content.encode("utf-8")
 
         self.send_response(status)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header(
+            "Content-Type",
+            "text/html; charset=utf-8"
+        )
         self.send_header("Content-Length", str(len(data)))
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
@@ -591,6 +640,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlparse(self.path).path
+
+        if path == "/health":
+            self.send_html(
+                page('<div class="card"><h2>Application is running.</h2></div>')
+            )
+            return
 
         if path == "/dashboard":
             self.send_html(dashboard())
@@ -610,7 +665,8 @@ required></textarea>
 <button type="submit">Analyze Email Security</button>
 </form>
 <p class="muted">
-Checks the trained model plus rule-based phishing, URL, urgency and risk indicators.
+Checks the trained model plus rule-based phishing, URL,
+urgency and risk indicators.
 </p>
 </div>
 
@@ -634,6 +690,13 @@ Checks the trained model plus rule-based phishing, URL, urgency and risk indicat
 
     def do_POST(self):
         try:
+            if urlparse(self.path).path != "/analyze":
+                self.send_html(
+                    page("<div class='card'><h2>Page not found.</h2></div>"),
+                    404
+                )
+                return
+
             size = min(
                 int(self.headers.get("Content-Length", "0")),
                 20000
@@ -656,7 +719,9 @@ Checks the trained model plus rule-based phishing, URL, urgency and risk indicat
                 )
                 return
 
-            is_spam, spam_probability, model_label = predict_spam(message)
+            is_spam, spam_probability, model_label = predict_spam(
+                message
+            )
 
             data = analyze_message(
                 message, is_spam, spam_probability
@@ -679,7 +744,9 @@ Checks the trained model plus rule-based phishing, URL, urgency and risk indicat
 
             suspicious_html = (
                 " ".join(
-                    '<span class="highlight">' + esc(word) + '</span>'
+                    '<span class="highlight">'
+                    + esc(word)
+                    + '</span>'
                     for word in data["suspicious"]
                 )
                 if data["suspicious"]
@@ -730,7 +797,6 @@ Checks the trained model plus rule-based phishing, URL, urgency and risk indicat
 
             result = f"""
 <div class="grid">
-
 <div class="card s12">
 <h2>Prediction Result</h2>
 <div class="result">
@@ -795,7 +861,6 @@ ML model label: {esc(model_label)}. Student demonstration only.
 A message or URL that passes these checks may still be malicious.
 </p>
 </div>
-
 </div>
 """
 
@@ -805,7 +870,9 @@ A message or URL that passes these checks may still be malicious.
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "preview": re.sub(r"\s+", " ", message)[:100],
                 "spam": bool(is_spam),
-                "spam_probability": round(spam_probability * 100, 1),
+                "spam_probability": round(
+                    spam_probability * 100, 1
+                ),
                 "risk_score": data["risk_score"],
                 "risk_level": data["risk_level"],
                 "phishing_score": data["phishing_score"]
@@ -821,8 +888,9 @@ A message or URL that passes these checks may still be malicious.
                 page(
                     '<div class="card"><h2>Prediction Error</h2>'
                     '<p>The message could not be analyzed.</p>'
-                    '<p><b>Details:</b> ' + esc(error) + '</p>'
-                    '<p><a href="/">Go back</a></p></div>'
+                    '<p><b>Details:</b> '
+                    + esc(error)
+                    + '</p><p><a href="/">Go back</a></p></div>'
                 ),
                 500
             )
@@ -835,23 +903,17 @@ A message or URL that passes these checks may still be malicious.
 
 
 if __name__ == "__main__":
+    HOST = "0.0.0.0"
+    PORT = int(os.environ.get("PORT", 8000))
+
     try:
-        server = HTTPServer(("127.0.0.1", 8000), Handler)
+        server = ThreadingHTTPServer((HOST, PORT), Handler)
 
-        print(
-            "AI Email Security Dashboard running at "
-            "http://127.0.0.1:8000"
-        )
-        print(
-            "Analytics Dashboard: "
-            "http://127.0.0.1:8000/dashboard"
-        )
-        print("Press Ctrl+C to stop the server.")
-
+        print(f"AI Email Security Dashboard running on {HOST}:{PORT}")
         server.serve_forever()
 
     except KeyboardInterrupt:
-        print("\nServer stopped.")
+        print("Server stopped.")
 
     except Exception:
         traceback.print_exc()
